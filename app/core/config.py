@@ -11,5 +11,5 @@ class Settings(BaseSettings):
         extra="ignore"
     )
 
-
+OFFLINE_THRESHOLD_SECONDS = 120
 settings = Settings()

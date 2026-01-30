@@ -15,8 +15,8 @@ class StatusResponse(BaseModel):
     is_online: bool
     
     class Config:
-        orm_mode = True
-
+        from_attributes = True
+        
 class DeviceStatusInfo(BaseModel):
     device_id: str
     status: str
