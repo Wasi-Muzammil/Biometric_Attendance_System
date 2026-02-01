@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.models.user import UserInformationDB
+from app.models.user import UserInformationDB,AdminInformationDB
 from app.models.attendance import AttendanceRecordDB
 from app.schemas.user import (UserInfoResponse,CreateUserRequest,DeleteUserResponse,DeleteUserRequest,UserInfo,BulkSyncResponse,BulkSyncRequest,BulkUserSyncDeleteResponse,BulkUserSyncDeleteRequest)
 
@@ -393,3 +393,14 @@ def bulk_sync_delete_users(
             detail=f"Bulk user sync-delete error: {str(e)}"
         )
     
+# Helper to seed default admin if not exists
+def seed_default_admin(db: Session = Depends(get_db)):
+    admin = db.query(AdminInformationDB).filter_by(username="admin").first()
+    if not admin:
+        new_admin = AdminInformationDB(
+            username="admin",
+            password="admin@123",
+            role="ADMIN"
+        )
+        db.add(new_admin)
+        db.commit()
