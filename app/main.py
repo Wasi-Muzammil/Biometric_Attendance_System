@@ -962,6 +962,8 @@ def seed_default_admin(db: Session):
         db.add(new_admin)
         db.commit()
 
+seed_default_admin()
+
 # ==================== FASTAPI APP ====================
 app = FastAPI(
     title="ESP32 Attendance System API",
