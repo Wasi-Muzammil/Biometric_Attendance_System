@@ -14,12 +14,12 @@ class UserInformationDB(Base):
     time = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.now)
 
-# class AdminInformationDB(Base):
-#     __tablename__ = "admin_information"
+class AdminInformationDB(Base):
+    __tablename__ = "admin_information"
     
-#     id = Column(Integer, primary_key=True, index=True)
-#     username = Column(String, unique=True, nullable=False, index=True)
-#     password = Column(String, nullable=False) # Plain text for now as requested
-#     role = Column(String, default="ADMIN")
-#     created_at = Column(DateTime, default=datetime.now)
-#     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, nullable=False, index=True)
+    password = Column(String, nullable=False) # Plain text for now as requested
+    role = Column(String, default="ADMIN")
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
