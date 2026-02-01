@@ -3,14 +3,15 @@ from app.core.config import OFFLINE_THRESHOLD_SECONDS
 
 def calculate_device_status(device):
     now = datetime.now()
-    diff = int((now - device.last_seen).total_seconds())
+    seconds_ago = int((now - device.last_seen).total_seconds())
 
-    is_online = diff < OFFLINE_THRESHOLD_SECONDS and device.status.lower() == "online"
+    is_online = seconds_ago <= OFFLINE_THRESHOLD_SECONDS
+    computed_status = "Online" if is_online else "Offline"
 
     return {
         "device_id": device.device_id,
-        "status": "Online" if is_online else "Offline",
+        "status": computed_status,
         "last_seen": device.last_seen,
-        "last_seen_seconds_ago": diff,
+        "last_seen_seconds_ago": seconds_ago,
         "is_online": is_online
     }
