@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-
+from typing import Optional
 from app.core.database import get_db
-from app.models.user import UserInformationDB
+from app.models.user import UserInformationDB,AdminInformationDB
 from app.models.attendance import AttendanceRecordDB
-from app.schemas.user import (UserInfoResponse,CreateUserRequest,DeleteUserResponse,DeleteUserRequest,UserInfo,BulkSyncResponse,BulkSyncRequest,BulkUserSyncDeleteResponse,BulkUserSyncDeleteRequest)
+from app.schemas.user import (UserInfoResponse,CreateUserRequest,DeleteUserResponse,DeleteUserRequest,UserInfo,BulkSyncResponse,BulkSyncRequest,BulkUserSyncDeleteResponse,BulkUserSyncDeleteRequest,LoginRequest,UserUpdateRequest)
 
 router = APIRouter(prefix="/esp32/user", tags=["User"])
 
@@ -393,3 +393,4 @@ def bulk_sync_delete_users(
             status_code=500,
             detail=f"Bulk user sync-delete error: {str(e)}"
         )
+    

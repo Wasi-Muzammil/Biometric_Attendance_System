@@ -71,3 +71,4 @@ class BulkUserSyncDeleteResponse(BaseModel):
     total_sd_users: int
     users_deleted: int
     attendance_logs_deleted: int
+

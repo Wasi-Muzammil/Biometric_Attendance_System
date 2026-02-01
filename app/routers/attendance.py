@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import tuple_
 from datetime import datetime
-
+from typing import Optional
 from app.core.database import get_db
 from app.models.attendance import AttendanceRecordDB
 from app.schemas.attendance import (AttendanceLogRequest,AttendanceLogResponse,AttendanceBulkRequest)
@@ -219,3 +219,4 @@ def log_bulk_attendance(
             status_code=500,
             detail=f"Bulk attendance logging error: {str(e)}"
         )
+    
