@@ -943,11 +943,11 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.core.database import Base, engine
+from app.core.database import Base, engine, SessionLocal
 from app.routers import device, user, attendance
+from app.routers.user import seed_default_admin
 
 Base.metadata.create_all(bind=engine)
-
 
 # ==================== FASTAPI APP ====================
 app = FastAPI(
@@ -956,6 +956,14 @@ app = FastAPI(
     version="1.0.0"
 )
 
+@app.on_event("startup")
+def startup_event():
+    db = SessionLocal()
+    try:
+        seed_default_admin(db)
+        print("Initial admin check complete.")
+    finally:
+        db.close()
 
 # CORS Configuration
 app.add_middleware(

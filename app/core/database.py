@@ -1,7 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from app.core.config import settings
-from app.routers.user import seed_default_admin
 
 
 engine = create_engine(
@@ -23,7 +22,6 @@ Base = declarative_base()
 def get_db():
     db = SessionLocal()
     try:
-        seed_default_admin(db)
         yield db
     finally:
         db.close()
