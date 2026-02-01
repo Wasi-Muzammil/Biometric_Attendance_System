@@ -943,24 +943,12 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
+
 from app.core.database import Base, engine
-from app.models.user import AdminInformationDB
+
 from app.routers import device, user, attendance
 
 Base.metadata.create_all(bind=engine)
-
-# # Helper to seed default admin if not exists
-# def seed_default_admin(db: Session):
-#     admin = db.query(AdminInformationDB).filter_by(username="admin").first()
-#     if not admin:
-#         new_admin = AdminInformationDB(
-#             username="admin",
-#             password="admin@123",
-#             role="ADMIN"
-#         )
-#         db.add(new_admin)
-#         db.commit()
 
 # ==================== FASTAPI APP ====================
 app = FastAPI(
