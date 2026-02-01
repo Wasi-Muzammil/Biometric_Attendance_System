@@ -393,3 +393,14 @@ def bulk_sync_delete_users(
             detail=f"Bulk user sync-delete error: {str(e)}"
         )
     
+# Helper to seed default admin if not exists
+def seed_default_admin(db: Session):
+    admin = db.query(AdminInformationDB).filter_by(username="admin").first()
+    if not admin:
+        new_admin = AdminInformationDB(
+            username="admin",
+            password="admin@123",
+            role="ADMIN"
+        )
+        db.add(new_admin)
+        db.commit()

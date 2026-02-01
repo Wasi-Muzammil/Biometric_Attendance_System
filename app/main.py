@@ -942,11 +942,26 @@
 
 
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import Base, engine
 from app.routers import device, user, attendance
+from app.core.database import SessionLocal
+from app.routers.user import seed_default_admin
 
 Base.metadata.create_all(bind=engine)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup logic:
+    db = SessionLocal()
+    try:
+        seed_default_admin(db)
+    finally:
+        db.close()
+    yield
+    # Shutdown logic (if any) goes here
 
 # ==================== FASTAPI APP ====================
 app = FastAPI(
