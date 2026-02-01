@@ -946,24 +946,29 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import Base, engine, SessionLocal
 from app.routers import device, user, attendance
 from app.routers.user import seed_default_admin
+from contextlib import asynccontextmanager
 
 Base.metadata.create_all(bind=engine)
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup logic:
+    db = SessionLocal()
+    try:
+        seed_default_admin(db)
+    finally:
+        db.close()
+    yield
+    # Shutdown logic (if any) goes here
+
 # ==================== FASTAPI APP ====================
 app = FastAPI(
+    lifespan=lifespan,
     title="ESP32 Attendance System API",
     description="REST API for Fingerprint Attendance System",
     version="1.0.0"
 )
 
-@app.on_event("startup")
-def startup_event():
-    db = SessionLocal()
-    try:
-        seed_default_admin(db)
-        print("Initial admin check complete.")
-    finally:
-        db.close()
 
 # CORS Configuration
 app.add_middleware(
