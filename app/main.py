@@ -950,17 +950,17 @@ from app.routers import device, user, attendance
 
 Base.metadata.create_all(bind=engine)
 
-# Helper to seed default admin if not exists
-def seed_default_admin(db: Session):
-    admin = db.query(AdminInformationDB).filter_by(username="admin").first()
-    if not admin:
-        new_admin = AdminInformationDB(
-            username="admin",
-            password="admin@123",
-            role="ADMIN"
-        )
-        db.add(new_admin)
-        db.commit()
+# # Helper to seed default admin if not exists
+# def seed_default_admin(db: Session):
+#     admin = db.query(AdminInformationDB).filter_by(username="admin").first()
+#     if not admin:
+#         new_admin = AdminInformationDB(
+#             username="admin",
+#             password="admin@123",
+#             role="ADMIN"
+#         )
+#         db.add(new_admin)
+#         db.commit()
 
 # ==================== FASTAPI APP ====================
 app = FastAPI(
