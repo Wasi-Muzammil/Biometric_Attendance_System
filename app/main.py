@@ -950,20 +950,9 @@ from contextlib import asynccontextmanager
 
 Base.metadata.create_all(bind=engine)
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup logic:
-    db = SessionLocal()
-    try:
-        seed_default_admin(db)
-    finally:
-        db.close()
-    yield
-    # Shutdown logic (if any) goes here
 
 # ==================== FASTAPI APP ====================
 app = FastAPI(
-    lifespan=lifespan,
     title="ESP32 Attendance System API",
     description="REST API for Fingerprint Attendance System",
     version="1.0.0"

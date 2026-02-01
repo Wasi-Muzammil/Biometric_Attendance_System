@@ -72,3 +72,30 @@ class BulkUserSyncDeleteResponse(BaseModel):
     users_deleted: int
     attendance_logs_deleted: int
 
+class AdminLoginRequest(BaseModel):
+    username: str = Field(..., description="Admin username")
+    password: str = Field(..., description="Admin password")
+
+class AdminLoginResponse(BaseModel):
+    success: bool
+    message: str
+    token: Optional[str] = None
+    admin: Optional[dict] = None
+
+class AdminCreateRequest(BaseModel):
+    username: str = Field(..., description="New admin username")
+    password: str = Field(..., description="New admin password")
+    role: str = Field(default="admin", description="Admin role")
+
+class AdminUpdateRequest(BaseModel):
+    admin_id: int = Field(..., description="Admin ID to update")
+    username: Optional[str] = None
+    password: Optional[str] = None
+    role: Optional[str] = None
+
+class UserUpdateRequest(BaseModel):
+    user_id: int = Field(..., description="User ID to update")
+    name: Optional[str] = None
+    slot_id: Optional[list[int]] = None
+    date: Optional[str] = None
+    time: Optional[str] = None

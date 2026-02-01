@@ -3,8 +3,9 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.user import UserInformationDB,AdminInformationDB
 from app.models.attendance import AttendanceRecordDB
-from app.schemas.user import (UserInfoResponse,CreateUserRequest,DeleteUserResponse,DeleteUserRequest,UserInfo,BulkSyncResponse,BulkSyncRequest,BulkUserSyncDeleteResponse,BulkUserSyncDeleteRequest)
-
+from app.utils.admin import *
+from app.schemas.user import (UserInfoResponse,CreateUserRequest,DeleteUserResponse,DeleteUserRequest,UserInfo,BulkSyncResponse,BulkSyncRequest,BulkUserSyncDeleteResponse,BulkUserSyncDeleteRequest,AdminCreateRequest,AdminLoginRequest,AdminLoginResponse,AdminUpdateRequest,UserUpdateRequest)
+from datetime import datetime
 router = APIRouter(prefix="/esp32/user", tags=["User"])
 
 
@@ -404,3 +405,378 @@ def seed_default_admin(db: Session):
         )
         db.add(new_admin)
         db.commit()
+
+# ==================== ADMIN ENDPOINTS ====================
+
+@router.post("/admin/login", response_model=AdminLoginResponse)
+def admin_login(
+    data: AdminLoginRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Admin login endpoint
+    Validates credentials from admin_information table
+    """
+    try:
+        # Find admin by username
+        admin = db.query(AdminInformationDB).filter_by(
+            username=data.username
+        ).first()
+        
+        if not admin:
+            return AdminLoginResponse(
+                success=False,
+                message="Invalid username or password",
+                token=None,
+                admin=None
+            )
+        
+        # Verify password
+        if not verify_password(data.password, admin.password):
+            return AdminLoginResponse(
+                success=False,
+                message="Invalid username or password",
+                token=None,
+                admin=None
+            )
+        
+        # Successful login
+        return AdminLoginResponse(
+            success=True,
+            message="Login successful",
+            token=f"admin_session_{admin.id}",  # Simple token
+            admin={
+                "id": admin.id,
+                "username": admin.username,
+                "role": admin.role
+            }
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Login error: {str(e)}")
+
+@router.post("/admin/create")
+def create_admin(
+    data: AdminCreateRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Create new admin account
+    """
+    try:
+        # Check if username exists
+        existing = db.query(AdminInformationDB).filter_by(
+            username=data.username
+        ).first()
+        
+        if existing:
+            return {
+                "success": False,
+                "message": f"Username '{data.username}' already exists"
+            }
+        
+        # Hash password
+        hashed_pwd = hash_password(data.password)
+        
+        # Create admin
+        new_admin = AdminInformationDB(
+            username=data.username,
+            password=hashed_pwd,
+            role=data.role
+        )
+        
+        db.add(new_admin)
+        db.commit()
+        db.refresh(new_admin)
+        
+        return {
+            "success": True,
+            "message": "Admin created successfully",
+            "admin": {
+                "id": new_admin.id,
+                "username": new_admin.username,
+                "role": new_admin.role
+            }
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Admin creation error: {str(e)}")
+
+@router.put("/admin/update")
+def update_admin(
+    data: AdminUpdateRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Update admin information
+    """
+    try:
+        admin = db.query(AdminInformationDB).filter_by(
+            id=data.admin_id
+        ).first()
+        
+        if not admin:
+            return {
+                "success": False,
+                "message": f"Admin with ID {data.admin_id} not found"
+            }
+        
+        # Update fields
+        if data.username:
+            # Check if new username is taken
+            existing = db.query(AdminInformationDB).filter(
+                AdminInformationDB.username == data.username,
+                AdminInformationDB.id != data.admin_id
+            ).first()
+            
+            if existing:
+                return {
+                    "success": False,
+                    "message": f"Username '{data.username}' already exists"
+                }
+            
+            admin.username = data.username
+        
+        if data.password:
+            admin.password = hash_password(data.password)
+        
+        if data.role:
+            admin.role = data.role
+        
+        admin.updated_at = datetime.now()
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": "Admin updated successfully"
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Admin update error: {str(e)}")
+
+@router.get("/admin/list")
+def list_admins(db: Session = Depends(get_db)):
+    """
+    Get all admin accounts
+    """
+    try:
+        admins = db.query(AdminInformationDB).all()
+        
+        admin_list = []
+        for admin in admins:
+            admin_list.append({
+                "id": admin.id,
+                "username": admin.username,
+                "role": admin.role,
+                "created_at": admin.created_at.isoformat()
+            })
+        
+        return {
+            "total_admins": len(admin_list),
+            "admins": admin_list
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+# ==================== USER UPDATE ENDPOINT ====================
+
+@router.put("/admin/user/update")
+def update_user_admin(
+    data: UserUpdateRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Update user information (admin endpoint)
+    Allows updating name, slot_id array, date, time
+    """
+    try:
+        user = db.query(UserInformationDB).filter_by(
+            user_id=data.user_id
+        ).first()
+        
+        if not user:
+            return {
+                "success": False,
+                "message": f"User with ID {data.user_id} not found"
+            }
+        
+        # Update fields if provided
+        if data.name:
+            user.name = data.name
+        
+        if data.slot_id is not None:
+            # Validate slot IDs don't conflict with other users
+            for slot in data.slot_id:
+                existing_slot = db.query(UserInformationDB).filter(
+                    UserInformationDB.slot_id.contains([slot]),
+                    UserInformationDB.user_id != data.user_id
+                ).first()
+                
+                if existing_slot:
+                    return {
+                        "success": False,
+                        "message": f"Slot {slot} is already used by {existing_slot.name}"
+                    }
+            
+            user.slot_id = data.slot_id
+        
+        if data.date:
+            user.date = data.date
+        
+        if data.time:
+            user.time = data.time
+        
+        db.commit()
+        db.refresh(user)
+        
+        return {
+            "success": True,
+            "message": f"User {user.name} updated successfully",
+            "user": {
+                "name": user.name,
+                "user_id": user.user_id,
+                "slot_id": user.slot_id,
+                "date": user.date,
+                "time": user.time
+            }
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"User update error: {str(e)}")
+
+# ==================== DASHBOARD STATS ENDPOINT ====================
+
+@router.get("/admin/stats/dashboard")
+def get_dashboard_statistics(db: Session = Depends(get_db)):
+    """
+    Get dashboard statistics for admin panel
+    Returns: total users, today's attendance stats
+    """
+    try:
+        # Total users
+        total_users = db.query(UserInformationDB).count()
+        
+        # Today's date in DD/MM format
+        today = datetime.now().strftime("%d/%m")
+        
+        # Today's attendance records
+        today_records = db.query(AttendanceRecordDB).filter_by(
+            date=today
+        ).all()
+        
+        # Count check-ins and check-outs
+        checked_in = 0
+        checked_out = 0
+        
+        for record in today_records:
+            if record.checked_in_time:
+                checked_in += 1
+            if record.checked_out_time:
+                checked_out += 1
+        
+        return {
+            "total_users": total_users,
+            "today_records": len(today_records),
+            "checked_in": checked_in,
+            "checked_out": checked_out,
+            "date": today
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Stats error: {str(e)}")
+
+# ==================== INITIALIZATION ENDPOINT ====================
+
+@router.post("/admin/init")
+def initialize_default_admin(db: Session = Depends(get_db)):
+    """
+    Initialize default admin account (run once during setup)
+    Creates: username='admin', password='admin@123'
+    """
+    try:
+        # Check if any admin exists
+        existing_admin = db.query(AdminInformationDB).first()
+        
+        if existing_admin:
+            return {
+                "success": False,
+                "message": "Admin already exists. Use /admin/create for additional admins."
+            }
+        
+        # Create default admin
+        default_admin = AdminInformationDB(
+            username="admin",
+            password=hash_password("admin@123"),
+            role="super_admin"
+        )
+        
+        db.add(default_admin)
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": "Default admin created successfully",
+            "credentials": {
+                "username": "admin",
+                "password": "admin@123",
+                "note": "CHANGE THIS PASSWORD IMMEDIATELY!"
+            }
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Initialization error: {str(e)}")
+
+# ==================== ATTENDANCE RANGE ENDPOINT ====================
+
+@router.get("/admin/attendance/range")
+def get_attendance_range(
+    start_date: str,
+    end_date: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Get attendance records for a date range
+    
+    Args:
+        start_date: Start date in DD/MM format
+        end_date: End date in DD/MM format
+    
+    Returns:
+        All attendance records in the range
+    """
+    try:
+        # Since dates are stored as strings (DD/MM), we need to fetch and filter
+        all_records = db.query(AttendanceRecordDB).order_by(
+            AttendanceRecordDB.date
+        ).all()
+        
+        # Filter records (simple string comparison for DD/MM format)
+        filtered_records = []
+        
+        for record in all_records:
+            if start_date <= record.date <= end_date:
+                filtered_records.append({
+                    "name": record.name,
+                    "user_id": record.user_id,
+                    "slot_id": record.slot_id,
+                    "date": record.date,
+                    "checked_in_time": record.checked_in_time,
+                    "checked_out_time": record.checked_out_time,
+                    "is_present": record.is_present
+                })
+        
+        return {
+            "start_date": start_date,
+            "end_date": end_date,
+            "total_records": len(filtered_records),
+            "records": filtered_records
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Range query error: {str(e)}")
