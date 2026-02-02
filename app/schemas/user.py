@@ -9,6 +9,7 @@ class CreateUserRequest(BaseModel):
     slot_id: List[int] = Field(..., description="Array of fingerprint slot IDs (4 templates)")
     date: str = Field(..., description="Enrollment date (DD/MM format)")
     time: str = Field(..., description="Enrollment time (HH:MM:SS format)")
+    salary: Optional[float] = Field(None, description="Daily salary (optional)")
 
 class DeleteUserRequest(BaseModel):
     user_id: int = Field(..., description="User ID to delete")
@@ -28,9 +29,10 @@ class UserInfoResponse(BaseModel):
 class UserInfo(BaseModel):
     name: str
     user_id: int
-    slot_id: List[int]  # Changed to List
+    slot_id: List[int]  
     date: str
     time: str
+    salary: Optional[float] = None  
     created_at: datetime
     
     class Config:
@@ -99,3 +101,4 @@ class UserUpdateRequest(BaseModel):
     slot_id: Optional[list[int]] = None
     date: Optional[str] = None
     time: Optional[str] = None
+    salary: Optional[float] = None

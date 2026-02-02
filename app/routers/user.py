@@ -165,6 +165,7 @@ def get_user_by_id(
         slot_id=user.slot_id,
         date=user.date,
         time=user.time,
+        salary=user.salary,
         created_at=user.created_at
     )
 
@@ -314,6 +315,7 @@ def get_all_users(db: Session = Depends(get_db)):
             "total_templates": len(user.slot_id),
             "date": user.date,
             "time": user.time,
+            "salary": user.salary,
             "created_at": user.created_at.isoformat()
         })
     
@@ -591,48 +593,50 @@ def update_user_admin(
 ):
     """
     Update user information (admin endpoint)
-    Allows updating name, slot_id array, date, time
+    Allows updating name, slot_id array, date, time, salary
     """
     try:
         user = db.query(UserInformationDB).filter_by(
             user_id=data.user_id
         ).first()
-        
+
         if not user:
             return {
                 "success": False,
                 "message": f"User with ID {data.user_id} not found"
             }
-        
-        # Update fields if provided
+
         if data.name:
             user.name = data.name
-        
+
         if data.slot_id is not None:
-            # Validate slot IDs don't conflict with other users
             for slot in data.slot_id:
                 existing_slot = db.query(UserInformationDB).filter(
                     UserInformationDB.slot_id.contains([slot]),
                     UserInformationDB.user_id != data.user_id
                 ).first()
-                
+
                 if existing_slot:
                     return {
                         "success": False,
                         "message": f"Slot {slot} is already used by {existing_slot.name}"
                     }
-            
+
             user.slot_id = data.slot_id
-        
+
         if data.date:
             user.date = data.date
-        
+
         if data.time:
             user.time = data.time
-        
+
+        # ✅ NEW (NO LOGIC CHANGE)
+        if data.salary is not None:
+            user.salary = data.salary
+
         db.commit()
         db.refresh(user)
-        
+
         return {
             "success": True,
             "message": f"User {user.name} updated successfully",
@@ -641,13 +645,15 @@ def update_user_admin(
                 "user_id": user.user_id,
                 "slot_id": user.slot_id,
                 "date": user.date,
-                "time": user.time
+                "time": user.time,
+                "salary": user.salary
             }
         }
-        
+
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"User update error: {str(e)}")
+
 
 # ==================== DASHBOARD STATS ENDPOINT ====================
 
