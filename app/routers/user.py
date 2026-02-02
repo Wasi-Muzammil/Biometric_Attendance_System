@@ -358,7 +358,6 @@ def bulk_sync_delete_users(
         users_to_delete = []
         attendance_to_delete = 0
 
-        # -------- Step 3: Identify users missing from SD --------
         for db_user in db_users:
             if db_user.user_id not in sd_user_ids:
                 users_to_delete.append(db_user)
