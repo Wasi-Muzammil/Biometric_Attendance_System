@@ -12,7 +12,6 @@ class UserInformationDB(Base):
     slot_id = Column(ARRAY(Integer), nullable=False)  
     date = Column(String, nullable=False)
     time = Column(String, nullable=False)
-    salary = Column(Numeric(precision=10, scale=2),nullable=True,default= None)
     created_at = Column(DateTime, default=datetime.now)
 
 class AdminInformationDB(Base):
