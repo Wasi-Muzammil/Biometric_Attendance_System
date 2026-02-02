@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime,Numeric,Null
 from sqlalchemy.dialects.postgresql import ARRAY
 from datetime import datetime
 from app.core.database import Base
@@ -12,6 +12,7 @@ class UserInformationDB(Base):
     slot_id = Column(ARRAY(Integer), nullable=False)  
     date = Column(String, nullable=False)
     time = Column(String, nullable=False)
+    salary = Column(Numeric,nullable=True,default= Null)
     created_at = Column(DateTime, default=datetime.now)
 
 class AdminInformationDB(Base):
