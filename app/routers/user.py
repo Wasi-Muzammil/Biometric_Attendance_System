@@ -53,7 +53,7 @@ def create_user(
             user_id=data.id,
             slot_id=data.slot_id,  # Now stores as array [1,2,3,4]
             date=data.date,
-            time=data.time
+            time=data.time,
             salary=None
         )
         
