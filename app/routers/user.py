@@ -4,7 +4,7 @@ from app.core.database import get_db
 from app.models.user import UserInformationDB,AdminInformationDB
 from app.models.attendance import AttendanceRecordDB
 from app.utils.admin import *
-from app.schemas.user import (UserInfoResponse,CreateUserRequest,DeleteUserResponse,DeleteUserRequest,UserInfo,BulkSyncResponse,BulkSyncRequest,BulkUserSyncDeleteResponse,BulkUserSyncDeleteRequest,AdminCreateRequest,AdminLoginRequest,AdminLoginResponse,AdminUpdateRequest,UserUpdateRequest)
+from app.schemas.user import (UserInfoResponse,CreateUserRequest,DeleteUserResponse,DeleteUserRequest,UserInfo,BulkSyncResponse,BulkSyncRequest,BulkUserSyncDeleteResponse,BulkUserSyncDeleteRequest,AdminCreateRequest,AdminLoginRequest,AdminLoginResponse,AdminUpdateRequest,UpdateUserRequest)
 from datetime import datetime
 router = APIRouter(prefix="/esp32/user", tags=["User"])
 
@@ -592,7 +592,7 @@ def list_admins(db: Session = Depends(get_db)):
 
 @router.put("/admin/user/update")
 def update_user_admin(
-    data: UserUpdateRequest,
+    data: UpdateUserRequest,
     db: Session = Depends(get_db)
 ):
     """
