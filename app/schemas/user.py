@@ -95,10 +95,10 @@ class AdminUpdateRequest(BaseModel):
     password: Optional[str] = None
     role: Optional[str] = None
 
-class UserUpdateRequest(BaseModel):
+class UpdateUserRequest(BaseModel):
     user_id: int = Field(..., description="User ID to update")
-    name: Optional[str] = None
-    slot_id: Optional[list[int]] = None
-    date: Optional[str] = None
-    time: Optional[str] = None
-    salary: Optional[float] = None
+    name: Optional[str] = Field(None, description="New name")
+    slot_id: Optional[List[int]] = Field(None, description="New slot IDs")
+    date: Optional[str] = Field(None, description="New enrollment date")
+    time: Optional[str] = Field(None, description="New enrollment time")
+    salary: Optional[float] = Field(None, description="Daily salary")  # ✅ NEW

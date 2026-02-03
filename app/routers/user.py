@@ -54,6 +54,7 @@ def create_user(
             slot_id=data.slot_id,  # Now stores as array [1,2,3,4]
             date=data.date,
             time=data.time
+            salary=None
         )
         
         db.add(new_user)
@@ -68,7 +69,8 @@ def create_user(
                 "user_id": new_user.user_id,
                 "slot_id": new_user.slot_id,
                 "date": new_user.date,
-                "time": new_user.time
+                "time": new_user.time,
+                "salary": new_user.salary 
             }
         )
         
@@ -112,7 +114,8 @@ def delete_user(
             "user_id": user_to_delete.user_id,
             "slot_id": user_to_delete.slot_id,
             "date": user_to_delete.date,
-            "time": user_to_delete.time
+            "time": user_to_delete.time,
+            "salary": user_to_delete.salary
         }
         
         # Delete all attendance records
@@ -197,6 +200,7 @@ def get_user_by_slot(
         "scanned_slot": slot_id,  # Which specific slot was scanned
         "date": user.date,
         "time": user.time,
+        "salary": user.salary,
         "created_at": user.created_at.isoformat()
     }
 
@@ -260,7 +264,8 @@ def bulk_sync_users(
                     user_id=user_data.id,
                     slot_id=user_data.slot_id,  # Array of slots
                     date=user_data.date,
-                    time=user_data.time
+                    time=user_data.time,
+                    salary=None
                 )
                 new_users_to_add.append(new_user)
                 
