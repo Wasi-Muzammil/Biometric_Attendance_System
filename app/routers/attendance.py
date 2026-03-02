@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import tuple_
 from datetime import datetime
 from app.core.database import get_db
-from app.models.attendance import AttendanceRecordDB
-from app.schemas.attendance import (AttendanceLogRequest,AttendanceLogResponse,AttendanceBulkRequest)
+from app.models.attendance import AttendanceRecordDB,AttendanceSyncTriggerDB
+from app.schemas.attendance import (AttendanceLogRequest,AttendanceLogResponse,AttendanceBulkRequest,TriggerAttendanceSyncRequest,TriggerAttendanceSyncResponse,SyncTriggerCheck,CompleteSyncTriggerRequest,CompleteSyncTriggerResponse)
 
 router = APIRouter(prefix="/esp32/attendance", tags=["Attendance"])
 
@@ -219,3 +219,111 @@ def log_bulk_attendance(
             detail=f"Bulk attendance logging error: {str(e)}"
         )
     
+
+# ==================== TRIGGER ENDPOINT ====================
+@router.post("/esp32/trigger-attendance-sync", response_model=TriggerAttendanceSyncResponse)
+def trigger_attendance_sync(
+    data: TriggerAttendanceSyncRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    POST endpoint to trigger N-days attendance sync on ESP32
+    
+    Frontend calls this endpoint to request ESP32 to upload
+    attendance logs from the last N days.
+    
+    The trigger is stored in database, and ESP32 polls for it.
+    """
+    try:
+        # Store the trigger request in a sync_triggers table
+        trigger = AttendanceSyncTriggerDB(
+            device_id=data.device_id,
+            days_to_sync=data.days,
+            status="pending",
+            triggered_at=datetime.now()
+        )
+        
+        db.add(trigger)
+        db.commit()
+        db.refresh(trigger)
+        
+        return TriggerAttendanceSyncResponse(
+            success=True,
+            message=f"Sync trigger sent to {data.device_id} for last {data.days} days",
+            device_id=data.device_id,
+            days_requested=data.days,
+            trigger_timestamp=trigger.triggered_at
+        )
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Trigger error: {str(e)}")
+    
+@router.get("/esp32/check-sync-trigger/{device_id}", response_model=SyncTriggerCheck)
+def check_sync_trigger(
+    device_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    GET endpoint for ESP32 to check if there's a pending sync trigger
+    
+    ESP32 polls this endpoint every 30 seconds to see if frontend
+    has requested an N-days sync.
+    """
+    # Find the latest pending trigger for this device
+    trigger = db.query(AttendanceSyncTriggerDB).filter_by(
+        device_id=device_id,
+        status="pending"
+    ).order_by(
+        AttendanceSyncTriggerDB.triggered_at.desc()
+    ).first()
+    
+    if trigger:
+        return SyncTriggerCheck(
+            has_trigger=True,
+            days_to_sync=trigger.days_to_sync,
+            trigger_id=trigger.id,
+            message=f"Sync requested for last {trigger.days_to_sync} days"
+        )
+    else:
+        return SyncTriggerCheck(
+            has_trigger=False,
+            days_to_sync=0,
+            trigger_id=0,
+            message="No pending sync triggers"
+        )
+    
+@router.post("/esp32/complete-sync-trigger", response_model=CompleteSyncTriggerResponse)
+def complete_sync_trigger(
+    data: CompleteSyncTriggerRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    POST endpoint for ESP32 to report sync completion
+    
+    ESP32 calls this after executing the triggered sync to update status
+    """
+    try:
+        trigger = db.query(AttendanceSyncTriggerDB).filter_by(
+            id=data.trigger_id
+        ).first()
+        
+        if not trigger:
+            raise HTTPException(status_code=404, detail="Trigger not found")
+        
+        # Update trigger status
+        trigger.status = "completed" if data.success else "failed"
+        trigger.completed_at = datetime.now()
+        trigger.logs_synced = data.logs_synced
+        trigger.error_message = data.error_message if not data.success else None
+        
+        db.commit()
+        
+        return CompleteSyncTriggerResponse(
+            success=True,
+            message=f"Trigger {data.trigger_id} marked as {trigger.status}"
+        )
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Completion error: {str(e)}")
