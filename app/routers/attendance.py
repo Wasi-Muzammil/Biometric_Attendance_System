@@ -142,7 +142,7 @@ def get_attendance_by_date(date: str, db: Session = Depends(get_db)):
         "records": attendance_list
     }
 
-@api.post("/esp32/attendance/bulk")
+@router.post("/esp32/attendance/bulk")
 def log_bulk_attendance(
     data: AttendanceBulkRequest,
     db: Session = Depends(get_db)
