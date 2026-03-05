@@ -2,11 +2,10 @@ from pydantic import BaseModel,Field
 from typing import List, Optional
 from datetime import datetime
 
-# Attendance Log Schemas
 class AttendanceLogRequest(BaseModel):
     name: str = Field(..., description="User's full name")
     id: int = Field(..., description="User ID")
-    slot_id: List[int] = Field(..., description="Array of fingerprint slot IDs")
+    slot_id: Optional[List[int]] = Field(None, description="Fingerprint slot IDs (optional)")
     date: str = Field(..., description="Date (DD/MM format)")
     time: str = Field(..., description="Time (HH:MM format)")
 

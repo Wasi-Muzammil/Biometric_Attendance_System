@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import tuple_
 from datetime import datetime
 from app.core.database import get_db
+from app.models.user import UserInformationDB
 from app.models.attendance import AttendanceRecordDB,AttendanceSyncTriggerDB
 from app.schemas.attendance import (AttendanceLogRequest,AttendanceLogResponse,AttendanceBulkRequest,TriggerAttendanceSyncRequest,TriggerAttendanceSyncResponse,SyncTriggerCheck,CompleteSyncTriggerRequest,CompleteSyncTriggerResponse)
 
@@ -141,27 +142,25 @@ def get_attendance_by_date(date: str, db: Session = Depends(get_db)):
         "records": attendance_list
     }
 
-@router.post("/esp32/attendance/bulk")
+@api.post("/esp32/attendance/bulk")
 def log_bulk_attendance(
     data: AttendanceBulkRequest,
     db: Session = Depends(get_db)
 ):
     """
-    Bulk attendance upload from ESP32 SD card.
-
-    Logic:
-    - Same as single attendance API
-    - Optimized for 100s of logs
-    - Single DB commit
+    Bulk attendance upload with automatic slot_id fixing
     """
-
     try:
         logs = data.logs
 
         if not logs:
             return {"success": True, "message": "No logs received", "processed": 0}
 
-        # Preload existing records for optimization
+        # Preload all users for slot_id lookup
+        all_users = db.query(UserInformationDB).all()
+        user_slots_map = {user.user_id: user.slot_id for user in all_users}
+
+        # Preload existing records
         user_date_pairs = {(log.id, log.date) for log in logs}
 
         existing_records = db.query(AttendanceRecordDB).filter(
@@ -171,52 +170,94 @@ def log_bulk_attendance(
             ).in_(user_date_pairs)
         ).all()
 
-        # Convert to lookup dictionary
         record_map = {
             (r.user_id, r.date): r for r in existing_records
         }
 
         created = 0
         updated = 0
+        skipped = 0
+        fixed = 0
 
         for log in logs:
             key = (log.id, log.date)
-
-            if key in record_map:
-                # Update checkout time
-                record = record_map[key]
-                record.checked_out_time = log.time
-                record.updated_at = datetime.now()
-                updated += 1
-            else:
-                # First log of the day
-                new_record = AttendanceRecordDB(
-                    name=log.name,
-                    user_id=log.id,
-                    date=log.date,
-                    checked_in_time=log.time,
-                    checked_out_time=None,
-                    is_present=True
-                )
-                db.add(new_record)
-                record_map[key] = new_record
-                created += 1
+            
+            # ========== AUTO-FIX MISSING SLOT_ID ==========
+            slot_ids = log.slot_id
+            
+            # Check if slot_id is missing, None, or empty
+            needs_fix = (
+                slot_ids is None or 
+                slot_ids == [] or 
+                (isinstance(slot_ids, list) and len(slot_ids) == 0)
+            )
+            
+            if needs_fix:
+                # Look up in preloaded user map
+                if log.id in user_slots_map:
+                    slot_ids = user_slots_map[log.id]
+                    fixed += 1
+                    print(f"✓ Fixed slot_id for user {log.id} ({log.name}): {slot_ids}")
+                else:
+                    # User not found - skip this log
+                    skipped += 1
+                    print(f"✗ SKIP: User {log.id} ({log.name}) not in database")
+                    continue
+            
+            # Validate slot_ids before using
+            if not slot_ids or len(slot_ids) == 0:
+                skipped += 1
+                print(f"✗ SKIP: User {log.id} ({log.name}) has empty slot_ids")
+                continue
+            
+            # Process the log
+            try:
+                if key in record_map:
+                    # Update checkout time
+                    record = record_map[key]
+                    record.checked_out_time = log.time
+                    record.updated_at = datetime.now()
+                    updated += 1
+                else:
+                    # Create new record
+                    new_record = AttendanceRecordDB(
+                        name=log.name,
+                        user_id=log.id,
+                        slot_id=slot_ids,
+                        date=log.date,
+                        checked_in_time=log.time,
+                        checked_out_time=None,
+                        is_present=True
+                    )
+                    db.add(new_record)
+                    record_map[key] = new_record
+                    created += 1
+            except Exception as e:
+                print(f"✗ Error processing log for user {log.id}: {str(e)}")
+                skipped += 1
 
         db.commit()
 
+        message = f"Processed: {created} created, {updated} updated, {fixed} auto-fixed, {skipped} skipped"
+        print(f"Bulk attendance: {message}")
+
         return {
             "success": True,
-            "message": "Bulk attendance processed successfully",
+            "message": message,
             "total_logs": len(logs),
             "created_records": created,
-            "updated_records": updated
+            "updated_records": updated,
+            "fixed_records": fixed,
+            "skipped_records": skipped
         }
 
     except Exception as e:
         db.rollback()
+        error_msg = str(e)
+        print(f"❌ Bulk attendance error: {error_msg}")
         raise HTTPException(
             status_code=500,
-            detail=f"Bulk attendance logging error: {str(e)}"
+            detail=f"Bulk attendance logging error: {error_msg}"
         )
     
 
